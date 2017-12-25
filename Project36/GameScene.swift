@@ -15,6 +15,7 @@ class GameScene: SKScene {
     var backgroundMusic: SKAudioNode!
 
     let widthForNote = 72.6
+    let padding = 72.6
     lazy var totalWidth: Float64 = {
         return widthForNote * audioDuration()
     }()
@@ -22,6 +23,7 @@ class GameScene: SKScene {
     override func didMove(to view: SKView) {
         createBackground()
 //        drawCents()
+        drawVerticalLine()
         addMusic()
         drawNotes()
     }
@@ -35,6 +37,19 @@ class GameScene: SKScene {
             backgroundMusic.autoplayLooped = false
             addChild(backgroundMusic)
         }
+    }
+
+    func drawVerticalLine() {
+        let line = SKShapeNode()
+        let path = UIBezierPath()
+        let startPoint = CGPoint(x: CGFloat(padding), y: 0.0)
+        let endPoint = CGPoint(x: CGFloat(padding), y: CGFloat(size.height))
+        path.move(to: startPoint)
+        path.addLine(to: endPoint)
+        line.path = path.cgPath
+        line.strokeColor = .black
+        line.lineWidth = 1
+        addChild(line)
     }
 
     func createLine(startPoint: CGPoint, endPoint: CGPoint, color: UIColor = .white) {
@@ -96,20 +111,19 @@ class GameScene: SKScene {
     func drawNotes() {
         let myNotes = getNotes()
         var playingSong = false
-        var lastPoint:Double = Double(size.height / 14)
+        var lastPoint:Double = Double(size.height / 14 - 25)
         for (index, note) in myNotes.enumerated() {
-            if index != myNotes.count - 1 && index != 0 {
+            if index != myNotes.count - 1  {
                 let frequency1 = note.frequency
                 let frequency2 = myNotes[index + 1].frequency
                 let distance = convertToCent(from: frequency1, frequency2: frequency2)
                 lastPoint += distance
-//                print("distance is \(distance) and lastpoint is \(lastPoint)")
             }
             if !playingSong {
                 self.backgroundMusic.run(SKAction.play())
                 playingSong = true
             }
-            let point = CGPoint(x: note.startTime * widthForNote, y: lastPoint)
+            let point = CGPoint(x: note.startTime * widthForNote + padding, y: lastPoint)
             createLine(startPoint: CGPoint(x: 0, y: CGFloat(lastPoint)), endPoint:  CGPoint(x: size.width, y: CGFloat(lastPoint)), color: .black)
             let timeForNote = note.endTime - note.startTime
             let shape = SKShapeNode()
@@ -123,7 +137,7 @@ class GameScene: SKScene {
             let label = SKLabelNode(text: note.label)
             label.fontName = UIFont.boldSystemFont(ofSize: 24).fontName
             label.fontColor = .black
-            let labelPoint = CGPoint(x: note.startTime * widthForNote, y: lastPoint + 16)
+            let labelPoint = CGPoint(x: note.startTime * widthForNote + padding, y: lastPoint + 16)
             label.position = labelPoint
             label.run(moveLeft)
             addChild(label)
