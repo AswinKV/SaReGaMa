@@ -147,21 +147,28 @@ class GameScene: SKScene {
         let time = DispatchTime.now()
         for pitch in pitches {
                 let distance = convertToCent(frequency: pitch.frequency)
-                DispatchQueue.main.asyncAfter(deadline: time + pitch.timeStamp) {
-                    let line = SKShapeNode()
-                    let path = UIBezierPath()
-                    endPoint = CGPoint(x: self.xPadding + pitch.timeStamp * self.widthForNote, y: self.yPadding + (distance * self.onedp))
-                    path.move(to: startPoint)
-                    path.addLine(to: endPoint)
-                    line.path = path.cgPath
-                    line.strokeColor = .darkGray
-                    line.lineWidth = 4
-                    self.worldNode?.addChild(line)
+                endPoint = CGPoint(x: self.xPadding + floor(pitch.timeStamp * self.widthForNote), y: self.yPadding + (distance * self.onedp))
+
+                if (distance * self.onedp == 0.0) {
+                    continue
+                }
+                if endPoint - startPoint > CGFloat(100 * onedp) {
                     startPoint = endPoint
+                    continue
+                }
+                let path = CGMutablePath()
+                path.move(to: startPoint)
+                path.addLine(to: endPoint)
+                let line = SKShapeNode(path: path)
+                line.strokeColor = .darkGray
+                line.lineWidth = 3
+                startPoint = endPoint
+                DispatchQueue.main.asyncAfter(deadline: time + pitch.timeStamp - 1) {
+                    [weak self] in
+                    self?.worldNode?.addChild(line)
                 }
             }
     }
-
 
     func drawNotes() {
         let myNotes = getNotes()
