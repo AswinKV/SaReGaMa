@@ -7,6 +7,11 @@ struct Note : Comparable {
     let label: String
 }
 
+struct Pitch {
+    let timeStamp: Double
+    let frequency: Double
+}
+
 func < (lhs: Note, rhs: Note) -> Bool {
     return lhs.frequency < rhs.frequency
 }

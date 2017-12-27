@@ -12,38 +12,55 @@ import AVFoundation
 
 class GameScene: SKScene {
 
-    var backgroundMusic: SKAudioNode!
+    private var backgroundMusic: SKAudioNode!
 
-    let widthForNote = 72.6
-    let padding = 72.6
-    lazy var totalWidth: Float64 = {
+    private let widthForNote = 72.6
+    private let xPadding = 72.6
+    private lazy var totalWidth: Float64 = {
         return widthForNote * audioDuration()
     }()
+    private lazy var tonic: Double = {
+        if let tonicFile = Bundle.main.path(forResource: "SaReGa_SaReGaMa_2b", ofType: "tonic"),
+            let pitchFileData = FileManager.default.contents(atPath: tonicFile),
+            let tonic = NSString(data: pitchFileData,
+                                 encoding: String.Encoding.utf8.rawValue) {
+                return tonic.doubleValue
+            }
+        fatalError("file not available.")
+    }()
+    private var playingSong = false
+    private var yPadding:Double  {
+        return Double(size.height / 14)
+    }
+    private var onedp:Double {
+        return Double(size.height / 1400)
+    }
 
     override func didMove(to view: SKView) {
         createBackground()
-//        drawCents()
         drawVerticalLine()
         addMusic()
         drawNotes()
+        drawPitches()
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        view?.isPaused = !(view?.isPaused)!
     }
 
     func addMusic() {
         if let musicURL = Bundle.main.url(forResource: "SaReGa_SaReGaMa_2b", withExtension: "wav") {
             backgroundMusic = SKAudioNode(url: musicURL)
             backgroundMusic.autoplayLooped = false
-            addChild(backgroundMusic)
+            scene?.addChild(backgroundMusic)
         }
     }
 
     func drawVerticalLine() {
         let line = SKShapeNode()
         let path = UIBezierPath()
-        let startPoint = CGPoint(x: CGFloat(padding), y: 0.0)
-        let endPoint = CGPoint(x: CGFloat(padding), y: CGFloat(size.height))
+        let startPoint = CGPoint(x: CGFloat(xPadding), y: 0.0)
+        let endPoint = CGPoint(x: CGFloat(xPadding), y: CGFloat(size.height))
         path.move(to: startPoint)
         path.addLine(to: endPoint)
         line.path = path.cgPath
@@ -69,13 +86,6 @@ class GameScene: SKScene {
         background.position = CGPoint(x: frame.midX, y: frame.height)
         addChild(background)
         background.zPosition = -40
-    }
-
-    func drawCents() {
-        let height = size.height / 14
-        for i in (1...14) {
-            createLine(startPoint: CGPoint(x: 0, y: height * CGFloat(i)), endPoint:  CGPoint(x: size.width, y: height * CGFloat(i)))
-        }
     }
 
     func audioDuration() -> Float64 {
@@ -108,23 +118,66 @@ class GameScene: SKScene {
         fatalError("file not available.")
     }
 
-    func drawNotes() {
-        let myNotes = getNotes()
-        var playingSong = false
+    func getPitch() -> [Pitch] {
+        var arrayOfPitches = [Pitch]()
+        if let pitchFile = Bundle.main.path(forResource: "SaReGa_SaReGaMa_2b", ofType: "pitch"),
+            let pitchFileData = FileManager.default.contents(atPath: pitchFile),
+            let allPitches = NSString(data: pitchFileData,
+                                    encoding: String.Encoding.utf8.rawValue) {
+            for item in allPitches.components(separatedBy: "\r\n") where !item.isEmpty {
+                let components = item.components(separatedBy: "\t")
+                if let timeStamp = Double(components[0]),
+                    let frequency = Double(components[1]) {
+                    let pitch = Pitch(timeStamp: timeStamp, frequency: frequency)
+                    arrayOfPitches.append(pitch)
+                }
+            }
+            return arrayOfPitches
+        }
+        fatalError("file not available.")
+    }
+
+
+    func drawPitches() {
+        let pitches = getPitch()
+        let fadeInOut = SKAction.sequence([.fadeIn(withDuration: 2.0),
+                                           .fadeOut(withDuration: 2.0)])
         var lastPoint:Double = Double(size.height / 14 - 25)
-        for (index, note) in myNotes.enumerated() {
-            if index != myNotes.count - 1  {
-                let frequency1 = note.frequency
-                let frequency2 = myNotes[index + 1].frequency
-                let distance = convertToCent(from: frequency1, frequency2: frequency2)
+        var startPoint = CGPoint(x: CGFloat(self.xPadding + 20), y: 0.0)
+        for pitch in pitches {
+                let distance = convertToCent(frequency: pitch.frequency)
+                lastPoint += distance
+                print("start time is \(startPoint)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + pitch.timeStamp) {
+                    let line = SKShapeNode()
+                    let path = UIBezierPath()
+                    let endPoint = CGPoint(x: CGFloat(self.xPadding + 20), y: CGFloat(lastPoint))
+                    print("end time is \(endPoint)")
+                    path.move(to: startPoint)
+                    path.addLine(to: endPoint)
+                    line.path = path.cgPath
+                    line.strokeColor = .black
+                    line.lineWidth = 1
+                    line.run(.repeatForever(fadeInOut))
+                    self.addChild(line)
+                    startPoint = endPoint
+                }
                 lastPoint += distance
             }
+    }
+
+
+    func drawNotes() {
+        let myNotes = getNotes()
+        print("height of the screen is \(size.height) & onedp is \(onedp)")
+        for note in myNotes {
+            let distance = convertToCent(frequency: note.frequency)
             if !playingSong {
                 self.backgroundMusic.run(SKAction.play())
                 playingSong = true
             }
-            let point = CGPoint(x: note.startTime * widthForNote + padding, y: lastPoint)
-            createLine(startPoint: CGPoint(x: 0, y: CGFloat(lastPoint)), endPoint:  CGPoint(x: size.width, y: CGFloat(lastPoint)), color: .black)
+            let point = CGPoint(x: note.startTime * widthForNote + xPadding, y: yPadding + (distance * onedp))
+            createLine(startPoint: CGPoint(x: 0, y: CGFloat(yPadding + (distance * onedp))), endPoint:  CGPoint(x: size.width, y: CGFloat(yPadding + (distance * onedp))), color: .black)
             let timeForNote = note.endTime - note.startTime
             let shape = SKShapeNode()
             shape.path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: timeForNote * widthForNote, height: 5), cornerRadius: 3).cgPath
@@ -137,7 +190,7 @@ class GameScene: SKScene {
             let label = SKLabelNode(text: note.label)
             label.fontName = UIFont.boldSystemFont(ofSize: 24).fontName
             label.fontColor = .black
-            let labelPoint = CGPoint(x: note.startTime * widthForNote + padding, y: lastPoint + 16)
+            let labelPoint = CGPoint(x: note.startTime * widthForNote + xPadding, y: 16 + yPadding + (distance * onedp))
             label.position = labelPoint
             label.run(moveLeft)
             addChild(label)
@@ -145,8 +198,11 @@ class GameScene: SKScene {
         }
     }
 
-    func convertToCent(from frequency1: Double, frequency2: Double) -> Double {
-            return 1200 * log2(frequency2/frequency1)
+    func convertToCent(frequency: Double) -> Double {
+        guard frequency > 0  else {
+            return 0.0
+        }
+        return 1200 * log2(frequency/tonic)
     }
 
 }
