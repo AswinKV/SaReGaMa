@@ -15,7 +15,7 @@ class GameScene: SKScene {
     private var backgroundMusic: SKAudioNode!
     private var worldNode: SKNode?
     private let widthForNote = 72.6
-    private let xPadding = 72.6
+    private let xPadding = 100.0
     private lazy var totalWidth: Float64 = {
         return widthForNote * audioDuration()
     }()
@@ -144,9 +144,10 @@ class GameScene: SKScene {
         let pitches = getPitch()
         var startPoint = CGPoint(x: CGFloat(self.xPadding), y: 0.0)
         var endPoint = CGPoint(x: CGFloat(self.xPadding), y: 0.0)
+        let time = DispatchTime.now()
         for pitch in pitches {
                 let distance = convertToCent(frequency: pitch.frequency)
-                DispatchQueue.main.asyncAfter(deadline: .now() + pitch.timeStamp) {
+                DispatchQueue.main.asyncAfter(deadline: time + pitch.timeStamp) {
                     let line = SKShapeNode()
                     let path = UIBezierPath()
                     endPoint = CGPoint(x: self.xPadding + pitch.timeStamp * self.widthForNote, y: self.yPadding + (distance * self.onedp))
