@@ -13,7 +13,7 @@ import AVFoundation
 class GameScene: SKScene {
 
     private var backgroundMusic: SKAudioNode!
-
+    private var worldNode: SKNode?
     private let widthForNote = 72.6
     private let xPadding = 72.6
     private lazy var totalWidth: Float64 = {
@@ -37,6 +37,8 @@ class GameScene: SKScene {
     }
 
     override func didMove(to view: SKView) {
+        worldNode = SKNode()
+        self.addChild(worldNode!)
         createBackground()
         drawVerticalLine()
         addMusic()
@@ -52,7 +54,7 @@ class GameScene: SKScene {
         if let musicURL = Bundle.main.url(forResource: "SaReGa_SaReGaMa_2b", withExtension: "wav") {
             backgroundMusic = SKAudioNode(url: musicURL)
             backgroundMusic.autoplayLooped = false
-            scene?.addChild(backgroundMusic)
+            addChild(backgroundMusic)
         }
     }
 
@@ -140,36 +142,28 @@ class GameScene: SKScene {
 
     func drawPitches() {
         let pitches = getPitch()
-        let fadeInOut = SKAction.sequence([.fadeIn(withDuration: 2.0),
-                                           .fadeOut(withDuration: 2.0)])
-        var lastPoint:Double = Double(size.height / 14 - 25)
-        var startPoint = CGPoint(x: CGFloat(self.xPadding + 20), y: 0.0)
+        var startPoint = CGPoint(x: CGFloat(self.xPadding), y: 0.0)
+        var endPoint = CGPoint(x: CGFloat(self.xPadding), y: 0.0)
         for pitch in pitches {
                 let distance = convertToCent(frequency: pitch.frequency)
-                lastPoint += distance
-                print("start time is \(startPoint)")
                 DispatchQueue.main.asyncAfter(deadline: .now() + pitch.timeStamp) {
                     let line = SKShapeNode()
                     let path = UIBezierPath()
-                    let endPoint = CGPoint(x: CGFloat(self.xPadding + 20), y: CGFloat(lastPoint))
-                    print("end time is \(endPoint)")
+                    endPoint = CGPoint(x: self.xPadding + pitch.timeStamp * self.widthForNote, y: self.yPadding + (distance * self.onedp))
                     path.move(to: startPoint)
                     path.addLine(to: endPoint)
                     line.path = path.cgPath
-                    line.strokeColor = .black
-                    line.lineWidth = 1
-                    line.run(.repeatForever(fadeInOut))
-                    self.addChild(line)
+                    line.strokeColor = .darkGray
+                    line.lineWidth = 4
+                    self.worldNode?.addChild(line)
                     startPoint = endPoint
                 }
-                lastPoint += distance
             }
     }
 
 
     func drawNotes() {
         let myNotes = getNotes()
-        print("height of the screen is \(size.height) & onedp is \(onedp)")
         for note in myNotes {
             let distance = convertToCent(frequency: note.frequency)
             if !playingSong {
@@ -182,8 +176,6 @@ class GameScene: SKScene {
             let shape = SKShapeNode()
             shape.path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: timeForNote * widthForNote, height: 5), cornerRadius: 3).cgPath
             shape.position = point
-            let moveLeft = SKAction.moveBy(x: CGFloat(-totalWidth), y: 0, duration: audioDuration())
-            shape.run(moveLeft)
             shape.strokeColor = UIColor.blue
             shape.lineWidth = 10
 
@@ -192,10 +184,12 @@ class GameScene: SKScene {
             label.fontColor = .black
             let labelPoint = CGPoint(x: note.startTime * widthForNote + xPadding, y: 16 + yPadding + (distance * onedp))
             label.position = labelPoint
-            label.run(moveLeft)
-            addChild(label)
-            addChild(shape)
+
+            worldNode?.addChild(label)
+            worldNode?.addChild(shape)
         }
+        let moveLeft = SKAction.moveBy(x: CGFloat(-totalWidth), y: 0, duration: audioDuration())
+        worldNode?.run(moveLeft)
     }
 
     func convertToCent(frequency: Double) -> Double {
